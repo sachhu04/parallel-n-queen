@@ -127,6 +127,12 @@
         let simulationInterval;
         let totalSolutions = 0;
         let startTime = 0;
+        
+        // --- New state for 4-thread pool simulation ---
+        const NUM_THREADS = 4;
+        let threadState = []; // Array to hold the state of our 4 threads
+        let nextTaskIndex = 0;
+        let tasksDoneCount = 0;
 
         // --- Element References ---
         const threadGrid = document.getElementById('thread-grid');
@@ -272,8 +278,8 @@
             }
             
             // Now that tasks are generated, setup the UI
-            setupUI();
-            simulationWrapper.classList.remove('hidden');
+            // setupUI(); // setupUI will be called by the 'Set N' button
+            // simulationWrapper.classList.remove('hidden');
         }
 
 
@@ -320,19 +326,21 @@
             mainLog.innerHTML = '';
             totalSolutionsEl.textContent = `Total solutions for N = ${globalN} : 0`;
             execTimeEl.textContent = 'Execution time: 0.00 seconds';
+
+            // Reset simulation state variables
+            threadState = [];
             totalSolutions = 0;
-            stepCounters = new Array(tasks.length).fill(0);
-            tasksDone = new Array(tasks.length).fill(false);
+            nextTaskIndex = 0;
+            tasksDoneCount = 0;
+            if(simulationInterval) clearInterval(simulationInterval);
+            
             startBtn.disabled = false;
             startBtn.textContent = 'Start Demonstration';
 
-            // Dynamic grid layout
-            let mdCols = (globalN === 1) ? 1 : 2;
-            let xlCols = (globalN <= 5) ? globalN : (globalN <= 8 ? 4 : 5);
-            if (globalN === 6) xlCols = 3;
-            threadGrid.className = `grid grid-cols-1 md:grid-cols-${mdCols} xl:grid-cols-${xlCols} gap-6`;
+            // Always create 4 threads
+            threadGrid.className = `grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6`;
             
-            tasks.forEach((task, i) => {
+            for (let i = 0; i < NUM_THREADS; i++) {
                 const card = document.createElement('div');
                 card.id = `thread-card-${i}`;
                 card.className = 'bg-gray-800 rounded-lg shadow-xl overflow-hidden border-2 border-gray-700 transition-all duration-300';
@@ -340,8 +348,8 @@
                 // Card Header
                 const header = document.createElement('div');
                 header.className = 'p-3 bg-gray-700 border-b border-gray-600';
-                header.innerHTML = `<h3 class="text-lg font-bold text-white">Thread <span class="text-cyan-400">${task.threadId}</span></h3>
-                                  <p class="text-sm text-gray-300">Task: Explore from Col ${task.startCol}</p>`;
+                header.innerHTML = `<h3 class="text-lg font-bold text-white">Thread <span class="text-cyan-400">${i}</span></h3>
+                                  <p class="text-sm text-gray-300 task-label">Task: Idle</p>`;
                 
                 // Chessboard
                 const boardElement = document.createElement('div');
@@ -364,30 +372,96 @@
                 
                 // Render initial empty board
                 renderBoard(new Array(globalN).fill(-1), boardElement);
-            });
+
+                // Initialize state for this thread
+                threadState.push({
+                    card: card,
+                    currentTask: null, // No task assigned yet
+                    stepCounter: 0
+                });
+            }
+        }
+
+        /**
+         * Resets the simulation state for the "Start" button
+         */
+        function resetSimulationState() {
+            totalSolutions = 0;
+            nextTaskIndex = 0;
+            tasksDoneCount = 0;
+            if(simulationInterval) clearInterval(simulationInterval);
+
+            mainLog.innerHTML = '';
+            totalSolutionsEl.textContent = `Total solutions for N = ${globalN} : 0`;
+            execTimeEl.textContent = 'Execution time: 0.00 seconds';
+            startBtn.disabled = false;
+            startBtn.textContent = 'Start Demonstration';
+
+            // Reset each thread card
+            for (let i = 0; i < threadState.length; i++) {
+                const thread = threadState[i];
+                thread.currentTask = null;
+                thread.stepCounter = 0;
+                
+                const card = thread.card;
+                card.querySelector('.task-label').textContent = 'Task: Idle';
+                const resultEl = card.querySelector('.result');
+                resultEl.textContent = 'Pending...';
+                resultEl.className = 'result p-2 bg-gray-700 rounded-b-lg text-center font-bold text-gray-400';
+                
+                card.classList.remove('border-green-500', 'border-red-500');
+                card.classList.add('border-gray-700');
+                card.querySelector('.status-log').innerHTML = '';
+                
+                renderBoard(new Array(globalN).fill(-1), card.querySelector('.chessboard'));
+            }
         }
 
         /**
          * Executes one step of the simulation for all active threads.
          */
         function simulationStep() {
-            let allDone = true;
+            let allTasksAssigned = (nextTaskIndex === tasks.length);
             
-            for (let i = 0; i < tasks.length; i++) {
-                if (tasksDone[i]) continue;
-                
-                allDone = false; // At least one task is still running
-                const task = tasks[i];
-                const stepIndex = stepCounters[i];
-                
+            for (let i = 0; i < NUM_THREADS; i++) {
+                const thread = threadState[i];
+
+                // --- 1. Check if thread is idle ---
+                if (thread.currentTask === null) {
+                    // If idle, try to get a new task
+                    if (!allTasksAssigned) {
+                        const taskIndex = nextTaskIndex++;
+                        allTasksAssigned = (nextTaskIndex === tasks.length); // Update status
+                        
+                        const task = tasks[taskIndex];
+                        thread.currentTask = task;
+                        thread.stepCounter = 0;
+                        
+                        // Update UI
+                        const card = thread.card;
+                        card.querySelector('.task-label').textContent = `Task: Explore from Col ${task.startCol}`;
+                        card.querySelector('.status-log').innerHTML = ''; // Clear log
+                        const resultEl = card.querySelector('.result');
+                        resultEl.textContent = 'Running...';
+                        resultEl.className = 'result p-2 bg-gray-700 rounded-b-lg text-center font-bold text-yellow-400';
+                    }
+                    // If no tasks left, thread remains idle.
+                    continue; 
+                }
+
+                // --- 2. If thread is busy, execute one step ---
+                const task = thread.currentTask;
+                const stepIndex = thread.stepCounter;
+
                 if (stepIndex >= task.steps.length) {
-                    tasksDone[i] = true;
+                    // This shouldn't happen if 'final' flag is set, but as a safeguard.
+                    thread.currentTask = null;
                     continue;
                 }
-                
+
                 const step = task.steps[stepIndex];
                 
-                const card = document.getElementById(`thread-card-${i}`);
+                const card = thread.card;
                 const boardEl = card.querySelector('.chessboard');
                 const statusEl = card.querySelector('.status-log');
                 
@@ -407,34 +481,39 @@
                 
                 // Check if this is the final step for this task
                 if (step.final) {
-                    tasksDone[i] = true;
+                    tasksDoneCount++;
                     const resultEl = card.querySelector('.result');
                     resultEl.textContent = `Found ${step.solutions} solution(s).`;
-                    card.classList.remove('border-gray-700');
+                    card.classList.remove('border-gray-700', 'border-red-500', 'border-green-500'); // Clear old borders
                     if (step.solutions > 0) {
-                        resultEl.classList.remove('text-gray-400');
-                        resultEl.classList.add('text-green-400');
+                        resultEl.className = 'result p-2 bg-gray-700 rounded-b-lg text-center font-bold text-green-400';
                         card.classList.add('border-green-500');
                     } else {
-                        resultEl.classList.remove('text-gray-400');
-                        resultEl.classList.add('text-red-400');
+                        resultEl.className = 'result p-2 bg-gray-700 rounded-b-lg text-center font-bold text-red-400';
                         card.classList.add('border-red-500');
                     }
 
                     // Add to main log (like C++ output)
                     const mainLogEntry = document.createElement('div');
                     mainLogEntry.className = 'font-fira text-sm';
-                    mainLogEntry.innerHTML = `Thread <span class="text-cyan-400">${task.threadId}</span> explored first queen at col <span class="text-yellow-400">${task.startCol}</span> and found <span class="text-green-400">${step.solutions}</span> solution(s).`;
+                    mainLogEntry.innerHTML = `Thread <span class="text-cyan-400">${i}</span> explored first queen at col <span class="text-yellow-400">${task.startCol}</span> and found <span class="text-green-400">${step.solutions}</span> solution(s).`;
                     mainLog.appendChild(mainLogEntry);
                     
                     totalSolutions += step.solutions;
+
+                    // Free the thread
+                    thread.currentTask = null;
+                    thread.stepCounter = 0;
+                    card.querySelector('.task-label').textContent = 'Task: Idle';
+
+                } else {
+                    // If not final step, just increment counter
+                    thread.stepCounter++;
                 }
-                
-                stepCounters[i]++;
             }
             
             // If all tasks are done, stop the simulation
-            if (allDone) {
+            if (tasksDoneCount === tasks.length) {
                 clearInterval(simulationInterval);
                 const endTime = performance.now();
                 const duration = ((endTime - startTime) / 1000).toFixed(4);
@@ -472,7 +551,9 @@
                 
                 // Use setTimeout to allow UI to update before heavy computation
                 setTimeout(() => {
-                    initializeSimulation(n); // This is the heavy part
+                    initializeSimulation(n); // This is the heavy part (generates tasks)
+                    setupUI(); // This creates the 4 thread cards
+                    simulationWrapper.classList.remove('hidden'); // Show the wrapper
                     
                     setNBtn.disabled = false;
                     setNBtn.textContent = 'Set N & Initialize';
@@ -500,8 +581,8 @@
             if (simulationInterval) {
                 clearInterval(simulationInterval);
             }
-            // Reset counters and logs, but keep generated tasks
-            setupUI();
+            // Reset counters and logs, but keep generated tasks and UI
+            resetSimulationState();
             
             startBtn.disabled = true;
             startBtn.textContent = 'Running...';
@@ -513,6 +594,8 @@
         // --- Initial Page Load ---
         // Run setup for N=4 on initial load
         initializeSimulation(4);
+        setupUI(); // Create the initial 4 thread cards
+        simulationWrapper.classList.remove('hidden'); // Show the wrapper
 
     </script>
 </body>
