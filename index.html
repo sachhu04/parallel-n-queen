@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parallel N-Queens Demo (N=4)</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Inter font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .font-fira {
+            font-family: 'Fira Code', monospace;
+        }
+        /* Style for the chessboard squares */
+        .chessboard .square {
+            width: 100%;
+            padding-bottom: 100%; /* Creates a square aspect ratio */
+            position: relative;
+        }
+        .chessboard .square-content {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.25rem; /* text-4xl */
+            line-height: 2.5rem;
+        }
+        /* Custom scrollbar for log */
+        .status-log::-webkit-scrollbar {
+            width: 6px;
+        }
+        .status-log::-webkit-scrollbar-track {
+            background: #1f2937; /* gray-800 */
+        }
+        .status-log::-webkit-scrollbar-thumb {
+            background: #4b5563; /* gray-600 */
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200 min-h-screen p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-white mb-2">Parallel N-Queens Demonstration</h1>
+            <p class="text-xl text-cyan-400 font-medium">Visualizing Threaded Execution</p>
+        </header>
+
+        <!-- N-Input -->
+        <div id="setup-block" class="bg-gray-800 p-6 rounded-lg shadow-xl mb-8 border border-gray-700 text-center">
+            <label for="n-input" class="text-lg font-medium mr-2">Enter board size (N):</label>
+            <input type="number" id="n-input" value="4" min="1" max="12" class="bg-gray-900 text-white w-20 p-2 rounded border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+            <button id="set-n-btn" class="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-6 rounded-lg ml-4 transition duration-300">
+                Set N & Initialize
+            </button>
+            <p class="text-sm text-gray-400 mt-2">Recommended: N between 4 and 10. (N > 10 is slow to generate)</p>
+        </div>
+
+        <!-- Introduction -->
+        <div class="bg-gray-800 p-6 rounded-lg shadow-xl mb-8 border border-gray-700">
+            <p id="intro-text" class="text-lg mb-4">This simulation demonstrates how your C++ OpenMP code parallelizes the N-Queens problem. For N=4, the main loop <code class="font-fira text-sm bg-gray-900 text-pink-400 px-1 py-0.5 rounded">#pragma omp parallel for</code> divides the work into 4 initial tasks:</p>
+            <ul id="intro-list" class="list-disc list-inside space-y-1 pl-2">
+                <li><strong class="text-yellow-400">Task 1:</strong> Find all solutions starting with a queen at <code class="font-fira text-sm">(0, 0)</code>.</li>
+                <li><strong class="text-yellow-400">Task 2:</strong> Find all solutions starting with a queen at <code class="font-fira text-sm">(0, 1)</code>.</li>
+                <li><strong class="text-yellow-400">Task 3:</strong> Find all solutions starting with a queen at <code class="font-fira text-sm">(0, 2)</code>.</li>
+                <li><strong class="text-yellow-400">Task 4:</strong> Find all solutions starting with a queen at <code class="font-fira text-sm">(0, 3)</code>.</li>
+            </ul>
+            <p class="mt-4">Each card below represents a thread (or task) exploring one of these starting positions. Click "Start" to see them work in parallel.</p>
+        </div>
+
+        <!-- Simulation Wrapper -->
+        <div id="simulation-wrapper" class="hidden">
+            <!-- Control Button -->
+            <div class="text-center mb-8">
+                <button id="start-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg text-lg shadow-lg transition duration-300 ease-in-out transform hover:scale-105 disabled:bg-gray-500 disabled:cursor-not-allowed">
+                    Start Demonstration
+                </button>
+            </div>
+
+            <!-- Thread Visualization Area -->
+            <div id="thread-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                <!-- Thread cards will be dynamically generated here -->
+            </div>
+
+            <!-- Summary & Final Log -->
+            <div class="bg-gray-800 p-6 rounded-lg shadow-xl mt-8 border border-gray-700">
+                <h2 class="text-2xl font-bold text-white mb-4">Execution Summary</h2>
+                <p class="text-lg mb-2">------------------------------------</p>
+                <div id="main-log" class="space-y-2 mb-4">
+                    <!-- Main log entries will appear here -->
+                </div>
+                <p id="total-solutions" class="text-lg font-bold text-green-400">Total solutions for N = 4 : 0</p>
+                <p id="exec-time" class="text-md text-gray-400">Execution time: 0.00 seconds</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Modal -->
+    <div id="modal-backdrop" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
+        <div id="modal-content" class="bg-gray-800 rounded-lg shadow-xl p-6 max-w-sm mx-auto border border-gray-600">
+            <p id="modal-message" class="text-lg text-white mb-6"></p>
+            <div id="modal-buttons" class="text-right space-x-4">
+                <button id="modal-cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg transition duration-300">Cancel</button>
+                <button id="modal-confirm-btn" class="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-6 rounded-lg transition duration-300">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Global Variables ---
+        let globalN = 4;
+        let tasks = [];
+        let stepCounters = [];
+        let tasksDone = [];
+        let simulationInterval;
+        let totalSolutions = 0;
+        let startTime = 0;
+
+        // --- Element References ---
+        const threadGrid = document.getElementById('thread-grid');
+        const startBtn = document.getElementById('start-btn');
+        const mainLog = document.getElementById('main-log');
+        const totalSolutionsEl = document.getElementById('total-solutions');
+        const execTimeEl = document.getElementById('exec-time');
+        const setNBtn = document.getElementById('set-n-btn');
+        const nInput = document.getElementById('n-input');
+        const simulationWrapper = document.getElementById('simulation-wrapper');
+
+        const modalBackdrop = document.getElementById('modal-backdrop');
+        const modalMessage = document.getElementById('modal-message');
+        const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+        const modalCancelBtn = document.getElementById('modal-cancel-btn');
+
+        // --- Modal Logic ---
+        let modalConfirmCallback = null;
+
+        function showModal(message, showCancel = false, onConfirm = null) {
+            modalMessage.textContent = message;
+            modalConfirmCallback = onConfirm;
+            
+            modalCancelBtn.classList.toggle('hidden', !showCancel);
+            modalBackdrop.classList.remove('hidden');
+        }
+
+        modalConfirmBtn.addEventListener('click', () => {
+            modalBackdrop.classList.add('hidden');
+            if (modalConfirmCallback) {
+                modalConfirmCallback();
+            }
+        });
+
+        modalCancelBtn.addEventListener('click', () => {
+            modalBackdrop.classList.add('hidden');
+        });
+
+        // --- N-Queens Algorithm ---
+
+        /**
+         * Checks if it's safe to place a queen at (row, col).
+         */
+        function isSafe(row, col, board) {
+            for (let i = 0; i < row; i++) {
+                // Check column and diagonal conflicts
+                if (board[i] === col || Math.abs(board[i] - col) === (row - i)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /**
+         * Generates the simulation steps for a single starting column (a single "thread").
+         */
+        function generateStepsForTask(N, startCol) {
+            const steps = [];
+            let board = new Array(N).fill(-1);
+            
+            // This recursive function finds solutions AND populates the steps array
+            function solve(row, currentBoard) {
+                if (row === N) {
+                    steps.push({ board: [...currentBoard], msg: "SOLUTION FOUND!", solution: true });
+                    return 1; // Found one solution
+                }
+
+                let solutionCount = 0;
+                let placedAQueen = false;
+
+                for (let col = 0; col < N; col++) {
+                    if (isSafe(row, col, currentBoard)) {
+                        placedAQueen = true;
+                        currentBoard[row] = col;
+                        steps.push({ board: [...currentBoard], msg: `Row ${row}: Try (${row}, ${col}). OK.` });
+                        
+                        solutionCount += solve(row + 1, currentBoard);
+                        
+                        // Backtrack
+                        currentBoard[row] = -1;
+                        if(row < N) {
+                             steps.push({ board: [...currentBoard], msg: `Row ${row+1}: Backtracking...` , backtrack: true});
+                        }
+                    }
+                }
+                
+                if (!placedAQueen) {
+                     steps.push({ board: [...currentBoard], msg: `Row ${row}: No safe spots. Backtrack.` });
+                }
+
+                return solutionCount;
+            }
+            
+            let solutionsFound = 0;
+            // The C++ code checks isSafe for the first row. We do the same.
+            if (isSafe(0, startCol, board)) {
+                board[0] = startCol; // First queen is placed
+                steps.push({ board: [...board], msg: `Start: Queen at (0, ${startCol})` });
+                solutionsFound = solve(1, board); // Start solving from row 1
+            } else {
+                // This case is technically impossible for row 0, but good to have
+                steps.push({ board: [...board], msg: `Start: (0, ${startCol}) is not safe.` });
+            }
+
+
+            // Reset board for final visual
+            board.fill(-1);
+            steps.push({ board: [...board], msg: `Task Complete. Found ${solutionsFound} solution(s).`, final: true, solutions: solutionsFound });
+            
+            return steps;
+        }
+
+        /**
+         * Initializes the entire simulation state for a given N.
+         */
+        function initializeSimulation(N) {
+            globalN = N;
+            tasks = []; // Clear previous tasks
+            
+            // Update Titles
+            document.querySelector('header p').textContent = `Visualizing Threaded Execution for N = ${N}`;
+            
+            // Update Intro Text
+            const introText = document.getElementById('intro-text');
+            introText.innerHTML = `This simulation demonstrates how your C++ OpenMP code parallelizes the N-Queens problem. For N=${N}, the main loop <code class="font-fira text-sm bg-gray-900 text-pink-400 px-1 py-0.5 rounded">#pragma omp parallel for</code> divides the work into ${N} initial tasks:`;
+            
+            // Update Intro List
+            const introList = document.getElementById('intro-list');
+            introList.innerHTML = '';
+            for (let i = 0; i < N; i++) {
+                const li = document.createElement('li');
+                li.innerHTML = `<strong class="text-yellow-400">Task ${i+1}:</strong> Find all solutions starting with a queen at <code class="font-fira text-sm">(0, ${i})</code>.`;
+                introList.appendChild(li);
+            }
+
+            // Generate all task data
+            for (let i = 0; i < N; i++) {
+                tasks.push({
+                    startCol: i,
+                    threadId: i,
+                    steps: generateStepsForTask(N, i)
+                });
+            }
+            
+            // Now that tasks are generated, setup the UI
+            setupUI();
+            simulationWrapper.classList.remove('hidden');
+        }
+
+
+        // --- UI Functions ---
+
+        /**
+         * Renders a single chessboard state.
+         */
+        function renderBoard(boardArray, boardElement) {
+            boardElement.innerHTML = ''; // Clear previous board
+            const N = boardArray.length; // Get N from the board array
+            
+            // Dynamic font size based on N
+            let fontSize = "2.25rem"; // text-4xl
+            if (N > 6) fontSize = "1.5rem"; // text-2xl
+            if (N > 8) fontSize = "1.125rem"; // text-lg
+
+            for (let r = 0; r < N; r++) {
+                for (let c = 0; c < N; c++) {
+                    const square = document.createElement('div');
+                    square.className = 'square';
+                    const squareContent = document.createElement('div');
+                    squareContent.className = 'square-content';
+                    squareContent.style.fontSize = fontSize; // Apply dynamic font size
+                    
+                    const isDark = (r + c) % 2 === 1;
+                    squareContent.classList.add(isDark ? 'bg-gray-600' : 'bg-gray-400');
+
+                    if (boardArray[r] === c) {
+                        squareContent.textContent = '♛'; // Queen emoji
+                        squareContent.classList.add(isDark ? 'text-white' : 'text-black');
+                    }
+                    square.appendChild(squareContent);
+                    boardElement.appendChild(square);
+                }
+            }
+        }
+
+        /**
+         * Sets up the thread cards and resets the simulation state.
+         */
+        function setupUI() {
+            threadGrid.innerHTML = '';
+            mainLog.innerHTML = '';
+            totalSolutionsEl.textContent = `Total solutions for N = ${globalN} : 0`;
+            execTimeEl.textContent = 'Execution time: 0.00 seconds';
+            totalSolutions = 0;
+            stepCounters = new Array(tasks.length).fill(0);
+            tasksDone = new Array(tasks.length).fill(false);
+            startBtn.disabled = false;
+            startBtn.textContent = 'Start Demonstration';
+
+            // Dynamic grid layout
+            let mdCols = (globalN === 1) ? 1 : 2;
+            let xlCols = (globalN <= 5) ? globalN : (globalN <= 8 ? 4 : 5);
+            if (globalN === 6) xlCols = 3;
+            threadGrid.className = `grid grid-cols-1 md:grid-cols-${mdCols} xl:grid-cols-${xlCols} gap-6`;
+            
+            tasks.forEach((task, i) => {
+                const card = document.createElement('div');
+                card.id = `thread-card-${i}`;
+                card.className = 'bg-gray-800 rounded-lg shadow-xl overflow-hidden border-2 border-gray-700 transition-all duration-300';
+                
+                // Card Header
+                const header = document.createElement('div');
+                header.className = 'p-3 bg-gray-700 border-b border-gray-600';
+                header.innerHTML = `<h3 class="text-lg font-bold text-white">Thread <span class="text-cyan-400">${task.threadId}</span></h3>
+                                  <p class="text-sm text-gray-300">Task: Explore from Col ${task.startCol}</p>`;
+                
+                // Chessboard
+                const boardElement = document.createElement('div');
+                boardElement.className = `chessboard grid grid-cols-${globalN} gap-0.5 p-2 bg-gray-900`;
+                
+                // Status Log
+                const statusLog = document.createElement('div');
+                statusLog.className = 'status-log h-32 overflow-y-auto bg-gray-900 p-2 font-fira text-xs space-y-1';
+                
+                // Result Footer
+                const result = document.createElement('div');
+                result.className = 'result p-2 bg-gray-700 rounded-b-lg text-center font-bold text-gray-400';
+                result.textContent = 'Pending...';
+
+                card.appendChild(header);
+                card.appendChild(boardElement);
+                card.appendChild(statusLog);
+                card.appendChild(result);
+                threadGrid.appendChild(card);
+                
+                // Render initial empty board
+                renderBoard(new Array(globalN).fill(-1), boardElement);
+            });
+        }
+
+        /**
+         * Executes one step of the simulation for all active threads.
+         */
+        function simulationStep() {
+            let allDone = true;
+            
+            for (let i = 0; i < tasks.length; i++) {
+                if (tasksDone[i]) continue;
+                
+                allDone = false; // At least one task is still running
+                const task = tasks[i];
+                const stepIndex = stepCounters[i];
+                
+                if (stepIndex >= task.steps.length) {
+                    tasksDone[i] = true;
+                    continue;
+                }
+                
+                const step = task.steps[stepIndex];
+                
+                const card = document.getElementById(`thread-card-${i}`);
+                const boardEl = card.querySelector('.chessboard');
+                const statusEl = card.querySelector('.status-log');
+                
+                // Render the board state
+                renderBoard(step.board, boardEl);
+                
+                // Update status log
+                const logEntry = document.createElement('div');
+                logEntry.textContent = step.msg;
+                if (step.solution) {
+                    logEntry.className = 'text-green-400 font-bold';
+                } else if (step.backtrack || step.msg.includes("Backtrack")) {
+                    logEntry.className = 'text-red-400';
+                }
+                statusEl.appendChild(logEntry);
+                statusEl.scrollTop = statusEl.scrollHeight; // Auto-scroll
+                
+                // Check if this is the final step for this task
+                if (step.final) {
+                    tasksDone[i] = true;
+                    const resultEl = card.querySelector('.result');
+                    resultEl.textContent = `Found ${step.solutions} solution(s).`;
+                    card.classList.remove('border-gray-700');
+                    if (step.solutions > 0) {
+                        resultEl.classList.remove('text-gray-400');
+                        resultEl.classList.add('text-green-400');
+                        card.classList.add('border-green-500');
+                    } else {
+                        resultEl.classList.remove('text-gray-400');
+                        resultEl.classList.add('text-red-400');
+                        card.classList.add('border-red-500');
+                    }
+
+                    // Add to main log (like C++ output)
+                    const mainLogEntry = document.createElement('div');
+                    mainLogEntry.className = 'font-fira text-sm';
+                    mainLogEntry.innerHTML = `Thread <span class="text-cyan-400">${task.threadId}</span> explored first queen at col <span class="text-yellow-400">${task.startCol}</span> and found <span class="text-green-400">${step.solutions}</span> solution(s).`;
+                    mainLog.appendChild(mainLogEntry);
+                    
+                    totalSolutions += step.solutions;
+                }
+                
+                stepCounters[i]++;
+            }
+            
+            // If all tasks are done, stop the simulation
+            if (allDone) {
+                clearInterval(simulationInterval);
+                const endTime = performance.now();
+                const duration = ((endTime - startTime) / 1000).toFixed(4);
+                
+                // Final summary
+                totalSolutionsEl.textContent = `Total solutions for N = ${globalN} : ${totalSolutions}`;
+                execTimeEl.textContent = `Execution time: ${duration} seconds (simulated)`;
+                startBtn.disabled = false;
+                startBtn.textContent = 'Restart Demonstration';
+            }
+        }
+        
+        // --- Event Listeners ---
+        
+        /**
+         * Main "Set N" button listener
+         */
+        setNBtn.addEventListener('click', () => {
+            const nVal = parseInt(nInput.value);
+            
+            if (isNaN(nVal) || nVal < 1) {
+                showModal("Please enter a valid number for N (e.g., 4 or more).");
+                return;
+            }
+
+            const runSimulationSetup = (n) => {
+                if (simulationInterval) {
+                    clearInterval(simulationInterval);
+                }
+                
+                setNBtn.disabled = true;
+                setNBtn.textContent = 'Generating...';
+                startBtn.disabled = true;
+                simulationWrapper.classList.add('hidden');
+                
+                // Use setTimeout to allow UI to update before heavy computation
+                setTimeout(() => {
+                    initializeSimulation(n); // This is the heavy part
+                    
+                    setNBtn.disabled = false;
+                    setNBtn.textContent = 'Set N & Initialize';
+                    startBtn.disabled = false;
+                    startBtn.textContent = 'Start Demonstration';
+                    mainLog.innerHTML = '';
+                    execTimeEl.textContent = 'Execution time: 0.00 seconds';
+                    totalSolutionsEl.textContent = `Total solutions for N = ${n} : 0`;
+                }, 50);
+            };
+            
+            if (nVal > 10) {
+                 showModal(`N=${nVal} is very large and may take a long time to generate the simulation. Continue?`, true, () => {
+                     runSimulationSetup(nVal); // Run if user clicks "OK"
+                 });
+            } else {
+                runSimulationSetup(nVal); // Run immediately if N is small
+            }
+        });
+
+        /**
+         * Main "Start" button listener
+         */
+        startBtn.addEventListener('click', () => {
+            if (simulationInterval) {
+                clearInterval(simulationInterval);
+            }
+            // Reset counters and logs, but keep generated tasks
+            setupUI();
+            
+            startBtn.disabled = true;
+            startBtn.textContent = 'Running...';
+            startTime = performance.now();
+            // Run a simulation step every 500ms
+            simulationInterval = setInterval(simulationStep, 500);
+        });
+
+        // --- Initial Page Load ---
+        // Run setup for N=4 on initial load
+        initializeSimulation(4);
+
+    </script>
+</body>
+</html>
+
