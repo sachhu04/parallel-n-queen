@@ -1,0 +1,111 @@
+/* style.css */
+/* Base custom styles extending Tailwind */
+body {
+    background-image: radial-gradient(circle at 50% 0%, #1e293b 0%, #0f172a 60%);
+    background-attachment: fixed;
+}
+
+/* Glassmorphism Utilities */
+.glass-panel {
+    background: rgba(30, 41, 59, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.8s ease-out forwards;
+}
+
+@keyframes popIn {
+    0% { transform: scale(0.8); opacity: 0; }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.queen-piece {
+    animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    text-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+/* Style for the chessboard squares */
+.chessboard {
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+    border: 4px solid #334155;
+    border-radius: 4px;
+}
+
+.chessboard .square {
+    width: 100%;
+    padding-bottom: 100%; /* Creates a square aspect ratio */
+    position: relative;
+    transition: background-color 0.3s ease;
+}
+
+.chessboard .square-content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.25rem;
+    line-height: 1;
+}
+
+/* Chessboard colors */
+.square-light { background-color: #cbd5e1; }
+.square-dark { background-color: #64748b; }
+.square-active { box-shadow: inset 0 0 0 2px #38bdf8; }
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar,
+.status-log::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track,
+.status-log::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.5);
+    border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb,
+.status-log::-webkit-scrollbar-thumb {
+    background: rgba(71, 85, 105, 0.8);
+    border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover,
+.status-log::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 116, 139, 1);
+}
+
+/* Thread Card Hover Effects */
+.thread-card {
+    transition: all 0.3s ease;
+}
+.thread-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.5);
+}
+
+/* Task Badge styling */
+.task-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}

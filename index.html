@@ -1,603 +1,186 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Parallel N-Queens Demo (N=4)</title>
+    <title>Parallel N-Queens Demo</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#0f172a',
+                        cardBg: '#1e293b',
+                        accent: '#38bdf8',
+                        accentHover: '#0284c7'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
     <!-- Load Inter font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
-    <style>
-        /* Custom styles */
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        .font-fira {
-            font-family: 'Fira Code', monospace;
-        }
-        /* Style for the chessboard squares */
-        .chessboard .square {
-            width: 100%;
-            padding-bottom: 100%; /* Creates a square aspect ratio */
-            position: relative;
-        }
-        .chessboard .square-content {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2.25rem; /* text-4xl */
-            line-height: 2.5rem;
-        }
-        /* Custom scrollbar for log */
-        .status-log::-webkit-scrollbar {
-            width: 6px;
-        }
-        .status-log::-webkit-scrollbar-track {
-            background: #1f2937; /* gray-800 */
-        }
-        .status-log::-webkit-scrollbar-thumb {
-            background: #4b5563; /* gray-600 */
-            border-radius: 3px;
-        }
-    </style>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap"
+        rel="stylesheet">
+    <!-- Link External CSS -->
+    <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="bg-gray-900 text-gray-200 min-h-screen p-4 md:p-8">
+
+<body
+    class="bg-darkBg text-gray-200 min-h-screen p-4 md:p-8 font-sans antialiased selection:bg-accent selection:text-white">
 
     <div class="max-w-7xl mx-auto">
         <!-- Header -->
-        <header class="text-center mb-8">
-            <h1 class="text-3xl md:text-4xl font-bold text-white mb-2">Parallel N-Queens Demonstration</h1>
-            <p class="text-xl text-cyan-400 font-medium">Visualizing Threaded Execution</p>
+        <header class="text-center mb-10 mt-4 animate-fade-in">
+            <h1
+                class="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-accent to-purple-500 mb-4 tracking-tight">
+                Parallel N-Queens Demonstration</h1>
+            <p class="text-xl text-gray-400 font-medium">Visualizing Threaded Execution</p>
         </header>
 
         <!-- N-Input -->
-        <div id="setup-block" class="bg-gray-800 p-6 rounded-lg shadow-xl mb-8 border border-gray-700 text-center">
-            <label for="n-input" class="text-lg font-medium mr-2">Enter board size (N):</label>
-            <input type="number" id="n-input" value="4" min="1" max="12" class="bg-gray-900 text-white w-20 p-2 rounded border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500">
-            <button id="set-n-btn" class="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-6 rounded-lg ml-4 transition duration-300">
+        <div id="setup-block"
+            class="glass-panel p-8 rounded-2xl shadow-2xl mb-10 text-center mx-auto max-w-2xl transform transition-all hover:scale-[1.01]">
+            <label for="n-input" class="text-lg font-semibold mr-4 text-gray-200">Enter Board Size (N):</label>
+            <div
+                class="inline-flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700 focus-within:border-accent focus-within:ring-1 focus-within:ring-accent transition-all">
+                <input type="number" id="n-input" value="4" min="1" max="12"
+                    class="bg-transparent text-white text-center text-xl w-24 p-2 focus:outline-none font-mono">
+            </div>
+            <button id="set-n-btn"
+                class="mt-6 sm:mt-0 sm:ml-6 bg-gradient-to-r from-accent to-blue-600 hover:from-blue-600 hover:to-accent text-white font-bold py-3 px-8 rounded-lg shadow-lg hover:shadow-cyan-500/25 transition-all duration-300 transform hover:-translate-y-0.5">
                 Set N & Initialize
             </button>
-            <p class="text-sm text-gray-400 mt-2">Recommended: N between 4 and 10. (N > 10 is slow to generate)</p>
+            <p class="text-sm text-slate-400 mt-4 flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Recommended: N between 4 and 10. (N > 10 is compute-heavy)
+            </p>
         </div>
 
         <!-- Introduction -->
-        <div class="bg-gray-800 p-6 rounded-lg shadow-xl mb-8 border border-gray-700">
-            <p id="intro-text" class="text-lg mb-4">This simulation demonstrates how your C++ OpenMP code parallelizes the N-Queens problem. For N=4, the main loop <code class="font-fira text-sm bg-gray-900 text-pink-400 px-1 py-0.5 rounded">#pragma omp parallel for</code> divides the work into 4 initial tasks:</p>
-            <ul id="intro-list" class="list-disc list-inside space-y-1 pl-2">
-                <li><strong class="text-yellow-400">Task 1:</strong> Find all solutions starting with a queen at <code class="font-fira text-sm">(0, 0)</code>.</li>
-                <li><strong class="text-yellow-400">Task 2:</strong> Find all solutions starting with a queen at <code class="font-fira text-sm">(0, 1)</code>.</li>
-                <li><strong class="text-yellow-400">Task 3:</strong> Find all solutions starting with a queen at <code class="font-fira text-sm">(0, 2)</code>.</li>
-                <li><strong class="text-yellow-400">Task 4:</strong> Find all solutions starting with a queen at <code class="font-fira text-sm">(0, 3)</code>.</li>
-            </ul>
-            <p class="mt-4">Each card below represents a thread (or task) exploring one of these starting positions. Click "Start" to see them work in parallel.</p>
+        <div class="glass-panel p-8 rounded-2xl shadow-2xl mb-10">
+            <div class="flex items-start gap-4 mb-4">
+                <div class="p-3 bg-slate-800 rounded-lg text-accent">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold text-white mb-2">How it works</h2>
+                    <p id="intro-text" class="text-lg text-slate-300 leading-relaxed">This simulation demonstrates how
+                        C++ OpenMP code parallelizes the N-Queens problem. For N=4, the main loop <code
+                            class="font-mono text-sm bg-slate-800 text-pink-400 px-2 py-1 rounded-md border border-slate-700">#pragma omp parallel for</code>
+                        divides the work into 4 initial tasks:</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6" id="intro-list-container">
+                <ul id="intro-list" class="space-y-3">
+                    <!-- Dynamic List -->
+                </ul>
+            </div>
+
+            <div
+                class="mt-8 p-4 bg-slate-800/50 rounded-xl border border-slate-700 border-l-4 border-l-accent text-slate-300">
+                <p>Each card below represents a thread exploring one starting position. Click "Start" to watch them
+                    compute solutions simultaneously.</p>
+            </div>
         </div>
 
         <!-- Simulation Wrapper -->
-        <div id="simulation-wrapper" class="hidden">
+        <div id="simulation-wrapper" class="hidden opacity-0 transition-opacity duration-500">
             <!-- Control Button -->
-            <div class="text-center mb-8">
-                <button id="start-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg text-lg shadow-lg transition duration-300 ease-in-out transform hover:scale-105 disabled:bg-gray-500 disabled:cursor-not-allowed">
-                    Start Demonstration
+            <div class="text-center mb-10">
+                <button id="start-btn"
+                    class="group relative inline-flex items-center justify-center px-8 py-4 font-bold text-white transition-all duration-200 bg-emerald-500 font-pj rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-600 hover:bg-emerald-600 hover:-translate-y-1 hover:shadow-xl hover:shadow-emerald-500/30 disabled:bg-slate-600 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none">
+                    <span class="mr-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 group-disabled:hidden" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </span>
+                    <span class="btn-text">Start Demonstration</span>
                 </button>
             </div>
 
             <!-- Thread Visualization Area -->
-            <div id="thread-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-                <!-- Thread cards will be dynamically generated here -->
+            <div id="thread-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-12">
+                <!-- Thread cards dynamically generated here -->
             </div>
 
             <!-- Summary & Final Log -->
-            <div class="bg-gray-800 p-6 rounded-lg shadow-xl mt-8 border border-gray-700">
-                <h2 class="text-2xl font-bold text-white mb-4">Execution Summary</h2>
-                <p class="text-lg mb-2">------------------------------------</p>
-                <div id="main-log" class="space-y-2 mb-4">
-                    <!-- Main log entries will appear here -->
+            <div class="glass-panel p-8 rounded-2xl shadow-2xl border border-slate-700">
+                <div class="flex justify-between items-center mb-6 border-b border-slate-700 pb-4">
+                    <h2 class="text-2xl font-bold text-white flex items-center gap-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-accent" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Execution Summary
+                    </h2>
+                    <div class="text-right">
+                        <p id="total-solutions" class="text-2xl font-mono font-bold text-emerald-400">Total Solutions: 0
+                        </p>
+                        <p id="exec-time" class="text-sm text-slate-400 font-mono mt-1">Execution time: 0.00s</p>
+                    </div>
                 </div>
-                <p id="total-solutions" class="text-lg font-bold text-green-400">Total solutions for N = 4 : 0</p>
-                <p id="exec-time" class="text-md text-gray-400">Execution time: 0.00 seconds</p>
+
+                <div class="bg-slate-900 rounded-xl p-4 font-mono text-sm border border-slate-800 shadow-inner h-48 overflow-y-auto custom-scrollbar"
+                    id="main-log-container">
+                    <div id="main-log" class="space-y-2">
+                        <!-- Main log entries appear here -->
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Custom Modal -->
-    <div id="modal-backdrop" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
-        <div id="modal-content" class="bg-gray-800 rounded-lg shadow-xl p-6 max-w-sm mx-auto border border-gray-600">
-            <p id="modal-message" class="text-lg text-white mb-6"></p>
-            <div id="modal-buttons" class="text-right space-x-4">
-                <button id="modal-cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg transition duration-300">Cancel</button>
-                <button id="modal-confirm-btn" class="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-6 rounded-lg transition duration-300">OK</button>
+    <div id="modal-backdrop"
+        class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 hidden transition-opacity duration-300 opacity-0">
+        <div id="modal-content"
+            class="glass-panel rounded-2xl shadow-2xl p-8 max-w-md mx-auto border border-slate-700 transform scale-95 transition-transform duration-300">
+            <div class="flex items-center gap-4 mb-6">
+                <div class="w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold text-white">Notice</h3>
+            </div>
+            <p id="modal-message" class="text-lg text-slate-300 mb-8 leading-relaxed"></p>
+            <div id="modal-buttons" class="flex justify-end space-x-4">
+                <button id="modal-cancel-btn"
+                    class="px-6 py-2.5 rounded-lg text-slate-300 font-medium hover:bg-slate-800 transition-colors">Cancel</button>
+                <button id="modal-confirm-btn"
+                    class="bg-accent hover:bg-accentHover text-white font-bold py-2.5 px-6 rounded-lg shadow-lg shadow-accent/30 transition-all">OK</button>
             </div>
         </div>
     </div>
 
-    <script>
-        // --- Global Variables ---
-        let globalN = 4;
-        let tasks = [];
-        let stepCounters = [];
-        let tasksDone = [];
-        let simulationInterval;
-        let totalSolutions = 0;
-        let startTime = 0;
-        
-        // --- New state for 4-thread pool simulation ---
-        const NUM_THREADS = 4;
-        let threadState = []; // Array to hold the state of our 4 threads
-        let nextTaskIndex = 0;
-        let tasksDoneCount = 0;
-
-        // --- Element References ---
-        const threadGrid = document.getElementById('thread-grid');
-        const startBtn = document.getElementById('start-btn');
-        const mainLog = document.getElementById('main-log');
-        const totalSolutionsEl = document.getElementById('total-solutions');
-        const execTimeEl = document.getElementById('exec-time');
-        const setNBtn = document.getElementById('set-n-btn');
-        const nInput = document.getElementById('n-input');
-        const simulationWrapper = document.getElementById('simulation-wrapper');
-
-        const modalBackdrop = document.getElementById('modal-backdrop');
-        const modalMessage = document.getElementById('modal-message');
-        const modalConfirmBtn = document.getElementById('modal-confirm-btn');
-        const modalCancelBtn = document.getElementById('modal-cancel-btn');
-
-        // --- Modal Logic ---
-        let modalConfirmCallback = null;
-
-        function showModal(message, showCancel = false, onConfirm = null) {
-            modalMessage.textContent = message;
-            modalConfirmCallback = onConfirm;
-            
-            modalCancelBtn.classList.toggle('hidden', !showCancel);
-            modalBackdrop.classList.remove('hidden');
-        }
-
-        modalConfirmBtn.addEventListener('click', () => {
-            modalBackdrop.classList.add('hidden');
-            if (modalConfirmCallback) {
-                modalConfirmCallback();
-            }
-        });
-
-        modalCancelBtn.addEventListener('click', () => {
-            modalBackdrop.classList.add('hidden');
-        });
-
-        // --- N-Queens Algorithm ---
-
-        /**
-         * Checks if it's safe to place a queen at (row, col).
-         */
-        function isSafe(row, col, board) {
-            for (let i = 0; i < row; i++) {
-                // Check column and diagonal conflicts
-                if (board[i] === col || Math.abs(board[i] - col) === (row - i)) {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        /**
-         * Generates the simulation steps for a single starting column (a single "thread").
-         */
-        function generateStepsForTask(N, startCol) {
-            const steps = [];
-            let board = new Array(N).fill(-1);
-            
-            // This recursive function finds solutions AND populates the steps array
-            function solve(row, currentBoard) {
-                if (row === N) {
-                    steps.push({ board: [...currentBoard], msg: "SOLUTION FOUND!", solution: true });
-                    return 1; // Found one solution
-                }
-
-                let solutionCount = 0;
-                let placedAQueen = false;
-
-                for (let col = 0; col < N; col++) {
-                    if (isSafe(row, col, currentBoard)) {
-                        placedAQueen = true;
-                        currentBoard[row] = col;
-                        steps.push({ board: [...currentBoard], msg: `Row ${row}: Try (${row}, ${col}). OK.` });
-                        
-                        solutionCount += solve(row + 1, currentBoard);
-                        
-                        // Backtrack
-                        currentBoard[row] = -1;
-                        if(row < N) {
-                             steps.push({ board: [...currentBoard], msg: `Row ${row+1}: Backtracking...` , backtrack: true});
-                        }
-                    }
-                }
-                
-                if (!placedAQueen) {
-                     steps.push({ board: [...currentBoard], msg: `Row ${row}: No safe spots. Backtrack.` });
-                }
-
-                return solutionCount;
-            }
-            
-            let solutionsFound = 0;
-            // The C++ code checks isSafe for the first row. We do the same.
-            if (isSafe(0, startCol, board)) {
-                board[0] = startCol; // First queen is placed
-                steps.push({ board: [...board], msg: `Start: Queen at (0, ${startCol})` });
-                solutionsFound = solve(1, board); // Start solving from row 1
-            } else {
-                // This case is technically impossible for row 0, but good to have
-                steps.push({ board: [...board], msg: `Start: (0, ${startCol}) is not safe.` });
-            }
-
-
-            // Reset board for final visual
-            board.fill(-1);
-            steps.push({ board: [...board], msg: `Task Complete. Found ${solutionsFound} solution(s).`, final: true, solutions: solutionsFound });
-            
-            return steps;
-        }
-
-        /**
-         * Initializes the entire simulation state for a given N.
-         */
-        function initializeSimulation(N) {
-            globalN = N;
-            tasks = []; // Clear previous tasks
-            
-            // Update Titles
-            document.querySelector('header p').textContent = `Visualizing Threaded Execution for N = ${N}`;
-            
-            // Update Intro Text
-            const introText = document.getElementById('intro-text');
-            introText.innerHTML = `This simulation demonstrates how your C++ OpenMP code parallelizes the N-Queens problem. For N=${N}, the main loop <code class="font-fira text-sm bg-gray-900 text-pink-400 px-1 py-0.5 rounded">#pragma omp parallel for</code> divides the work into ${N} initial tasks:`;
-            
-            // Update Intro List
-            const introList = document.getElementById('intro-list');
-            introList.innerHTML = '';
-            for (let i = 0; i < N; i++) {
-                const li = document.createElement('li');
-                li.innerHTML = `<strong class="text-yellow-400">Task ${i+1}:</strong> Find all solutions starting with a queen at <code class="font-fira text-sm">(0, ${i})</code>.`;
-                introList.appendChild(li);
-            }
-
-            // Generate all task data
-            for (let i = 0; i < N; i++) {
-                tasks.push({
-                    startCol: i,
-                    threadId: i,
-                    steps: generateStepsForTask(N, i)
-                });
-            }
-            
-            // Now that tasks are generated, setup the UI
-            // setupUI(); // setupUI will be called by the 'Set N' button
-            // simulationWrapper.classList.remove('hidden');
-        }
-
-
-        // --- UI Functions ---
-
-        /**
-         * Renders a single chessboard state.
-         */
-        function renderBoard(boardArray, boardElement) {
-            boardElement.innerHTML = ''; // Clear previous board
-            const N = boardArray.length; // Get N from the board array
-            
-            // Dynamic font size based on N
-            let fontSize = "2.25rem"; // text-4xl
-            if (N > 6) fontSize = "1.5rem"; // text-2xl
-            if (N > 8) fontSize = "1.125rem"; // text-lg
-
-            for (let r = 0; r < N; r++) {
-                for (let c = 0; c < N; c++) {
-                    const square = document.createElement('div');
-                    square.className = 'square';
-                    const squareContent = document.createElement('div');
-                    squareContent.className = 'square-content';
-                    squareContent.style.fontSize = fontSize; // Apply dynamic font size
-                    
-                    const isDark = (r + c) % 2 === 1;
-                    squareContent.classList.add(isDark ? 'bg-gray-600' : 'bg-gray-400');
-
-                    if (boardArray[r] === c) {
-                        squareContent.textContent = '♛'; // Queen emoji
-                        squareContent.classList.add(isDark ? 'text-white' : 'text-black');
-                    }
-                    square.appendChild(squareContent);
-                    boardElement.appendChild(square);
-                }
-            }
-        }
-
-        /**
-         * Sets up the thread cards and resets the simulation state.
-         */
-        function setupUI() {
-            threadGrid.innerHTML = '';
-            mainLog.innerHTML = '';
-            totalSolutionsEl.textContent = `Total solutions for N = ${globalN} : 0`;
-            execTimeEl.textContent = 'Execution time: 0.00 seconds';
-
-            // Reset simulation state variables
-            threadState = [];
-            totalSolutions = 0;
-            nextTaskIndex = 0;
-            tasksDoneCount = 0;
-            if(simulationInterval) clearInterval(simulationInterval);
-            
-            startBtn.disabled = false;
-            startBtn.textContent = 'Start Demonstration';
-
-            // Always create 4 threads
-            threadGrid.className = `grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6`;
-            
-            for (let i = 0; i < NUM_THREADS; i++) {
-                const card = document.createElement('div');
-                card.id = `thread-card-${i}`;
-                card.className = 'bg-gray-800 rounded-lg shadow-xl overflow-hidden border-2 border-gray-700 transition-all duration-300';
-                
-                // Card Header
-                const header = document.createElement('div');
-                header.className = 'p-3 bg-gray-700 border-b border-gray-600';
-                header.innerHTML = `<h3 class="text-lg font-bold text-white">Thread <span class="text-cyan-400">${i}</span></h3>
-                                  <p class="text-sm text-gray-300 task-label">Task: Idle</p>`;
-                
-                // Chessboard
-                const boardElement = document.createElement('div');
-                boardElement.className = `chessboard grid grid-cols-${globalN} gap-0.5 p-2 bg-gray-900`;
-                
-                // Status Log
-                const statusLog = document.createElement('div');
-                statusLog.className = 'status-log h-32 overflow-y-auto bg-gray-900 p-2 font-fira text-xs space-y-1';
-                
-                // Result Footer
-                const result = document.createElement('div');
-                result.className = 'result p-2 bg-gray-700 rounded-b-lg text-center font-bold text-gray-400';
-                result.textContent = 'Pending...';
-
-                card.appendChild(header);
-                card.appendChild(boardElement);
-                card.appendChild(statusLog);
-                card.appendChild(result);
-                threadGrid.appendChild(card);
-                
-                // Render initial empty board
-                renderBoard(new Array(globalN).fill(-1), boardElement);
-
-                // Initialize state for this thread
-                threadState.push({
-                    card: card,
-                    currentTask: null, // No task assigned yet
-                    stepCounter: 0
-                });
-            }
-        }
-
-        /**
-         * Resets the simulation state for the "Start" button
-         */
-        function resetSimulationState() {
-            totalSolutions = 0;
-            nextTaskIndex = 0;
-            tasksDoneCount = 0;
-            if(simulationInterval) clearInterval(simulationInterval);
-
-            mainLog.innerHTML = '';
-            totalSolutionsEl.textContent = `Total solutions for N = ${globalN} : 0`;
-            execTimeEl.textContent = 'Execution time: 0.00 seconds';
-            startBtn.disabled = false;
-            startBtn.textContent = 'Start Demonstration';
-
-            // Reset each thread card
-            for (let i = 0; i < threadState.length; i++) {
-                const thread = threadState[i];
-                thread.currentTask = null;
-                thread.stepCounter = 0;
-                
-                const card = thread.card;
-                card.querySelector('.task-label').textContent = 'Task: Idle';
-                const resultEl = card.querySelector('.result');
-                resultEl.textContent = 'Pending...';
-                resultEl.className = 'result p-2 bg-gray-700 rounded-b-lg text-center font-bold text-gray-400';
-                
-                card.classList.remove('border-green-500', 'border-red-500');
-                card.classList.add('border-gray-700');
-                card.querySelector('.status-log').innerHTML = '';
-                
-                renderBoard(new Array(globalN).fill(-1), card.querySelector('.chessboard'));
-            }
-        }
-
-        /**
-         * Executes one step of the simulation for all active threads.
-         */
-        function simulationStep() {
-            let allTasksAssigned = (nextTaskIndex === tasks.length);
-            
-            for (let i = 0; i < NUM_THREADS; i++) {
-                const thread = threadState[i];
-
-                // --- 1. Check if thread is idle ---
-                if (thread.currentTask === null) {
-                    // If idle, try to get a new task
-                    if (!allTasksAssigned) {
-                        const taskIndex = nextTaskIndex++;
-                        allTasksAssigned = (nextTaskIndex === tasks.length); // Update status
-                        
-                        const task = tasks[taskIndex];
-                        thread.currentTask = task;
-                        thread.stepCounter = 0;
-                        
-                        // Update UI
-                        const card = thread.card;
-                        card.querySelector('.task-label').textContent = `Task: Explore from Col ${task.startCol}`;
-                        card.querySelector('.status-log').innerHTML = ''; // Clear log
-                        const resultEl = card.querySelector('.result');
-                        resultEl.textContent = 'Running...';
-                        resultEl.className = 'result p-2 bg-gray-700 rounded-b-lg text-center font-bold text-yellow-400';
-                    }
-                    // If no tasks left, thread remains idle.
-                    continue; 
-                }
-
-                // --- 2. If thread is busy, execute one step ---
-                const task = thread.currentTask;
-                const stepIndex = thread.stepCounter;
-
-                if (stepIndex >= task.steps.length) {
-                    // This shouldn't happen if 'final' flag is set, but as a safeguard.
-                    thread.currentTask = null;
-                    continue;
-                }
-
-                const step = task.steps[stepIndex];
-                
-                const card = thread.card;
-                const boardEl = card.querySelector('.chessboard');
-                const statusEl = card.querySelector('.status-log');
-                
-                // Render the board state
-                renderBoard(step.board, boardEl);
-                
-                // Update status log
-                const logEntry = document.createElement('div');
-                logEntry.textContent = step.msg;
-                if (step.solution) {
-                    logEntry.className = 'text-green-400 font-bold';
-                } else if (step.backtrack || step.msg.includes("Backtrack")) {
-                    logEntry.className = 'text-red-400';
-                }
-                statusEl.appendChild(logEntry);
-                statusEl.scrollTop = statusEl.scrollHeight; // Auto-scroll
-                
-                // Check if this is the final step for this task
-                if (step.final) {
-                    tasksDoneCount++;
-                    const resultEl = card.querySelector('.result');
-                    resultEl.textContent = `Found ${step.solutions} solution(s).`;
-                    card.classList.remove('border-gray-700', 'border-red-500', 'border-green-500'); // Clear old borders
-                    if (step.solutions > 0) {
-                        resultEl.className = 'result p-2 bg-gray-700 rounded-b-lg text-center font-bold text-green-400';
-                        card.classList.add('border-green-500');
-                    } else {
-                        resultEl.className = 'result p-2 bg-gray-700 rounded-b-lg text-center font-bold text-red-400';
-                        card.classList.add('border-red-500');
-                    }
-
-                    // Add to main log (like C++ output)
-                    const mainLogEntry = document.createElement('div');
-                    mainLogEntry.className = 'font-fira text-sm';
-                    mainLogEntry.innerHTML = `Thread <span class="text-cyan-400">${i}</span> explored first queen at col <span class="text-yellow-400">${task.startCol}</span> and found <span class="text-green-400">${step.solutions}</span> solution(s).`;
-                    mainLog.appendChild(mainLogEntry);
-                    
-                    totalSolutions += step.solutions;
-
-                    // Free the thread
-                    thread.currentTask = null;
-                    thread.stepCounter = 0;
-                    card.querySelector('.task-label').textContent = 'Task: Idle';
-
-                } else {
-                    // If not final step, just increment counter
-                    thread.stepCounter++;
-                }
-            }
-            
-            // If all tasks are done, stop the simulation
-            if (tasksDoneCount === tasks.length) {
-                clearInterval(simulationInterval);
-                const endTime = performance.now();
-                const duration = ((endTime - startTime) / 1000).toFixed(4);
-                
-                // Final summary
-                totalSolutionsEl.textContent = `Total solutions for N = ${globalN} : ${totalSolutions}`;
-                execTimeEl.textContent = `Execution time: ${duration} seconds (simulated)`;
-                startBtn.disabled = false;
-                startBtn.textContent = 'Restart Demonstration';
-            }
-        }
-        
-        // --- Event Listeners ---
-        
-        /**
-         * Main "Set N" button listener
-         */
-        setNBtn.addEventListener('click', () => {
-            const nVal = parseInt(nInput.value);
-            
-            if (isNaN(nVal) || nVal < 1) {
-                showModal("Please enter a valid number for N (e.g., 4 or more).");
-                return;
-            }
-
-            const runSimulationSetup = (n) => {
-                if (simulationInterval) {
-                    clearInterval(simulationInterval);
-                }
-                
-                setNBtn.disabled = true;
-                setNBtn.textContent = 'Generating...';
-                startBtn.disabled = true;
-                simulationWrapper.classList.add('hidden');
-                
-                // Use setTimeout to allow UI to update before heavy computation
-                setTimeout(() => {
-                    initializeSimulation(n); // This is the heavy part (generates tasks)
-                    setupUI(); // This creates the 4 thread cards
-                    simulationWrapper.classList.remove('hidden'); // Show the wrapper
-                    
-                    setNBtn.disabled = false;
-                    setNBtn.textContent = 'Set N & Initialize';
-                    startBtn.disabled = false;
-                    startBtn.textContent = 'Start Demonstration';
-                    mainLog.innerHTML = '';
-                    execTimeEl.textContent = 'Execution time: 0.00 seconds';
-                    totalSolutionsEl.textContent = `Total solutions for N = ${n} : 0`;
-                }, 50);
-            };
-            
-            if (nVal > 10) {
-                 showModal(`N=${nVal} is very large and may take a long time to generate the simulation. Continue?`, true, () => {
-                     runSimulationSetup(nVal); // Run if user clicks "OK"
-                 });
-            } else {
-                runSimulationSetup(nVal); // Run immediately if N is small
-            }
-        });
-
-        /**
-         * Main "Start" button listener
-         */
-        startBtn.addEventListener('click', () => {
-            if (simulationInterval) {
-                clearInterval(simulationInterval);
-            }
-            // Reset counters and logs, but keep generated tasks and UI
-            resetSimulationState();
-            
-            startBtn.disabled = true;
-            startBtn.textContent = 'Running...';
-            startTime = performance.now();
-            // Run a simulation step every 500ms
-            simulationInterval = setInterval(simulationStep, 500);
-        });
-
-        // --- Initial Page Load ---
-        // Run setup for N=4 on initial load
-        initializeSimulation(4);
-        setupUI(); // Create the initial 4 thread cards
-        simulationWrapper.classList.remove('hidden'); // Show the wrapper
-
-    </script>
+    <!-- Link External JS -->
+    <script src="js/script.js"></script>
 </body>
-</html>
 
+</html>
