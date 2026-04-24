@@ -53,4 +53,4 @@ open index.html
 
 ## 👨‍💻 Authors
 
-- **Sachin Singh** ([@sachhu04](https://github.com/sachhu04)) - Quantum Computing Course Project.
+- **Sachin Singh** ([@sachhu04](https://github.com/sachhu04))
